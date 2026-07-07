@@ -1,12 +1,12 @@
 import React from 'react';
-import { LogOut, LayoutDashboard, Trophy, Sparkles, User } from 'lucide-react';
+import { LogOut, LayoutDashboard, Trophy, Lightbulb, User } from 'lucide-react';
 import ThemeSelector from './ThemeSelector';
 
-export default function Navbar({ user, onViewChange, currentView, onLogout, color, setColor, mode, setMode }) {
+export default function Navbar({ user, onViewChange, currentView, onLogout, color, setColor, mode, setMode, onQuoteClick }) {
   return (
     <nav className="navbar">
-      <a href="#" className="nav-brand" onClick={(e) => { e.preventDefault(); if (user) onViewChange('dashboard'); }}>
-        <Sparkles size={20} className="text-glow" style={{ color: 'var(--primary-color)' }} />
+      <a href="#" className="nav-brand" onClick={(e) => { e.preventDefault(); onQuoteClick(); }} title="View Thought of the Day">
+        <Lightbulb size={20} className="text-glow" style={{ color: 'var(--primary-color)', cursor: 'pointer' }} />
         <span>Quizovian</span>
       </a>
 

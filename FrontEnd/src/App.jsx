@@ -5,6 +5,7 @@ import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import QuizPlay from './components/QuizPlay';
 import Leaderboard from './components/Leaderboard';
+import { Lightbulb } from 'lucide-react';
 
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('quizovian_token') || '');
@@ -13,6 +14,37 @@ function App() {
   const [mode, setMode] = useState(() => localStorage.getItem('quizovian_mode') || 'dark');
   const [view, setView] = useState('dashboard');
   const [activeAttempt, setActiveAttempt] = useState(null);
+
+  // Quote states
+  const [quote, setQuote] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+
+  const fetchQuote = async () => {
+    setQuoteLoading(true);
+    const fallbacks = [
+      { quote: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
+      { quote: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
+      { quote: "Education is the most powerful weapon which you can use to change the world.", author: "Nelson Mandela" },
+      { quote: "Wisdom is not a product of schooling but of the lifelong attempt to acquire it.", author: "Albert Einstein" },
+      { quote: "The mind is not a vessel to be filled, but a fire to be kindled.", author: "Plutarch" },
+      { quote: "Tell me and I forget. Teach me and I remember. Involve me and I learn.", author: "Benjamin Franklin" },
+      { quote: "Learning never exhausts the mind.", author: "Leonardo da Vinci" }
+    ];
+
+    try {
+      const res = await fetch('https://dummyjson.com/quotes/random');
+      if (!res.ok) throw new Error('API failed');
+      const data = await res.json();
+      setQuote({ quote: data.quote, author: data.author });
+    } catch (err) {
+      const randomIdx = Math.floor(Math.random() * fallbacks.length);
+      setQuote(fallbacks[randomIdx]);
+    } finally {
+      setQuoteLoading(false);
+      setShowQuoteModal(true);
+    }
+  };
 
   // Apply theme attributes to document element
   useEffect(() => {
@@ -102,12 +134,13 @@ function App() {
         setColor={setColor}
         mode={mode}
         setMode={setMode}
+        onQuoteClick={fetchQuote}
       />
 
       {/* Main Container */}
       <main className="main-content">
         {!user ? (
-          <Login onLogin={handleLoginSuccess} />
+          <Login onLogin={handleLoginSuccess} onQuoteClick={fetchQuote} />
         ) : (
           <>
             {view === 'dashboard' && (
@@ -136,6 +169,34 @@ function App() {
           </>
         )}
       </main>
+
+      {/* Quote Modal */}
+      {showQuoteModal && (
+        <div className="modal-overlay" onClick={() => setShowQuoteModal(false)}>
+          <div className="glass-card modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', padding: '36px' }}>
+            <button className="modal-close" onClick={() => setShowQuoteModal(false)}>✕</button>
+            <div style={{ display: 'inline-flex', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '50%', marginBottom: '16px', border: '1px solid var(--card-border)' }}>
+              <Lightbulb size={32} style={{ color: 'var(--primary-color)' }} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '12px', fontFamily: 'var(--font-title)' }}>Thought of the Day</h3>
+            {quoteLoading ? (
+              <p style={{ color: 'var(--text-muted)' }}>Seeking inspiration...</p>
+            ) : (
+              <>
+                <p style={{ fontStyle: 'italic', fontSize: '1rem', lineHeight: '1.5', marginBottom: '12px' }}>
+                  "{quote?.quote}"
+                </p>
+                <p style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--primary-color)' }}>
+                  — {quote?.author}
+                </p>
+              </>
+            )}
+            <button className="btn-glow" style={{ marginTop: '20px', padding: '8px 24px', fontSize: '0.9rem' }} onClick={() => setShowQuoteModal(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

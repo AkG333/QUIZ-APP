@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LogIn, UserPlus, ShieldAlert, Sparkles, Mail, Lock, User as UserIcon, Shield, BookOpen, Lightbulb, GraduationCap, Brain, Compass } from 'lucide-react';
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, onQuoteClick }) {
   const [isRegistering, setIsRegistering] = useState(false);
   
   // Login fields
@@ -103,8 +103,12 @@ export default function Login({ onLogin }) {
         
         {/* Glow Header */}
         <div className="auth-header">
-          <div style={{ display: 'inline-flex', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '50%', marginBottom: '16px', border: '1px solid var(--card-border)' }}>
-            <Sparkles className="text-glow" size={32} style={{ color: 'var(--primary-color)' }} />
+          <div 
+            onClick={onQuoteClick}
+            title="View Thought of the Day"
+            style={{ display: 'inline-flex', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '50%', marginBottom: '16px', border: '1px solid var(--card-border)', cursor: 'pointer' }}
+          >
+            <Lightbulb className="text-glow" size={32} style={{ color: 'var(--primary-color)' }} />
           </div>
           <h2 className="auth-title shimmer-text">
             {isRegistering ? 'Create Account' : 'Welcome to Quizovian'}
