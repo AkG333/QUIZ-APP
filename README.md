@@ -1,6 +1,4 @@
-========================================================================
                       QUIZOVIAN PLATFORM DOCUMENTATION
-========================================================================
 
 Quizovian is a premium, smooth, and ambient-styled Online Quiz Application.
 This documentation provides a comprehensive description of the system architecture,
