@@ -56,6 +56,30 @@ public class QuestionServiceImpl implements QuestionService {
                 .toList();
     }
 
+    @Override
+    public QuestionResponse updateQuestion(Long questionId, CreateQuestionRequest request) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new RuntimeException("Question Not Found"));
+
+        question.setQuestionText(request.getQuestionText());
+        question.setOptionA(request.getOptionA());
+        question.setOptionB(request.getOptionB());
+        question.setOptionC(request.getOptionC());
+        question.setOptionD(request.getOptionD());
+        question.setCorrectAnswer(request.getCorrectAnswer());
+
+        Question savedQuestion = questionRepository.save(question);
+        return mapToResponse(savedQuestion);
+    }
+
+    @Override
+    public void deleteQuestion(Long questionId) {
+        if (!questionRepository.existsById(questionId)) {
+            throw new RuntimeException("Question Not Found");
+        }
+        questionRepository.deleteById(questionId);
+    }
+
     private QuestionResponse mapToResponse(
             Question question
     ) {

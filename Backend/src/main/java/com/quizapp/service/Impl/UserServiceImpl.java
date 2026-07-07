@@ -29,6 +29,19 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Email already exists");
         }
 
+        Role role = Role.ROLE_USER;
+        if (request.getRole() != null && !request.getRole().isBlank()) {
+            String roleStr = request.getRole().trim().toUpperCase();
+            if (!roleStr.startsWith("ROLE_")) {
+                roleStr = "ROLE_" + roleStr;
+            }
+            try {
+                role = Role.valueOf(roleStr);
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Invalid role specified. Allowed values are USER, ADMIN");
+            }
+        }
+
         User user = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
@@ -37,7 +50,7 @@ public class UserServiceImpl implements UserService {
                                 request.getPassword()
                         )
                 )
-                .role(Role.ROLE_USER)
+                .role(role)
                 .build();
 
         userRepository.save(user);
@@ -60,6 +73,6 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Invalid credentials");
         }
 
-        return jwtService.generateToken(user.getEmail());
+        return jwtService.generateToken(user.getEmail(), user.getUsername(), user.getRole().name());
     }
 }

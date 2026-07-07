@@ -19,6 +19,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+                // Enable CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // Disable CSRF because we are using JWT
                 .csrf(csrf -> csrf.disable())
@@ -32,39 +34,36 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         // Public Endpoints
-                        .requestMatchers("/auth/**")
+                        .requestMatchers("/api/auth/**")
                         .permitAll()
 
                         // ===============================
                         // ADMIN APIs
                         // ===============================
 
-                        .requestMatchers(HttpMethod.POST, "/quiz/**")
+                        .requestMatchers("/api/admin/**")
                         .hasRole("ADMIN")
 
-                        .requestMatchers(HttpMethod.PUT, "/quiz/**")
+                        .requestMatchers(HttpMethod.POST, "/api/quizzes/**")
                         .hasRole("ADMIN")
 
-                        .requestMatchers(HttpMethod.DELETE, "/quiz/**")
+                        .requestMatchers(HttpMethod.PUT, "/api/quizzes/**")
                         .hasRole("ADMIN")
 
-                        .requestMatchers(HttpMethod.POST, "/question/**")
-                        .hasRole("ADMIN")
-
-                        .requestMatchers(HttpMethod.PUT, "/question/**")
-                        .hasRole("ADMIN")
-
-                        .requestMatchers(HttpMethod.DELETE, "/question/**")
+                        .requestMatchers(HttpMethod.DELETE, "/api/quizzes/**")
                         .hasRole("ADMIN")
 
                         // ===============================
-                        // USER APIs
+                        // USER & ADMIN APIs (Authenticated)
                         // ===============================
 
-                        .requestMatchers("/quiz/join/**")
+                        .requestMatchers(HttpMethod.GET, "/api/quizzes/**")
                         .hasAnyRole("USER", "ADMIN")
 
-                        .requestMatchers("/attempt/**")
+                        .requestMatchers("/api/attempts/**")
+                        .hasAnyRole("USER", "ADMIN")
+
+                        .requestMatchers("/api/leaderboard/**")
                         .hasAnyRole("USER", "ADMIN")
 
                         // ===============================
@@ -82,5 +81,17 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+        org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
+        configuration.setAllowedOrigins(java.util.List.of("http://localhost:5173", "http://127.0.0.1:5173"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Cache-Control", "Content-Type"));
+        configuration.setAllowCredentials(true);
+        org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

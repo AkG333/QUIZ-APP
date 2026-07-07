@@ -43,4 +43,27 @@ public class QuestionController {
                 )
         );
     }
+
+    @PutMapping("/questions/{questionId}")
+    public ResponseEntity<QuestionResponse> updateQuestion(
+            @PathVariable Long questionId,
+            @RequestBody CreateQuestionRequest request
+    ) {
+
+        return ResponseEntity.ok(
+                questionService.updateQuestion(
+                        questionId,
+                        request
+                )
+        );
+    }
+
+    @DeleteMapping("/questions/{questionId}")
+    public ResponseEntity<Void> deleteQuestion(
+            @PathVariable Long questionId
+    ) {
+
+        questionService.deleteQuestion(questionId);
+        return ResponseEntity.noContent().build();
+    }
 }

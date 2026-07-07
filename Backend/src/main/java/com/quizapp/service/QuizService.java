@@ -12,4 +12,8 @@ public interface QuizService {
     List<QuizResponse> getAllQuizzes();
 
     QuizResponse getQuizByCode(String quizCode);
+
+    QuizResponse updateQuiz(Long id, CreateQuizRequest request);
+
+    void deleteQuiz(Long id);
 }

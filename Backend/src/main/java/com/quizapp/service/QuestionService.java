@@ -15,4 +15,8 @@ public interface QuestionService {
     List<QuestionResponse> getQuestionsByQuiz(
             Long quizId
     );
+
+    QuestionResponse updateQuestion(Long questionId, CreateQuestionRequest request);
+
+    void deleteQuestion(Long questionId);
 }

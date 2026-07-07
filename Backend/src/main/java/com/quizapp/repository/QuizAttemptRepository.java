@@ -10,4 +10,7 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
 
     List<QuizAttempt> findByUser(User user);
 
+    List<QuizAttempt> findByQuizIdAndCompletedTrue(Long quizId);
+
+    List<QuizAttempt> findByCompletedTrue();
 }
