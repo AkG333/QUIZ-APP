@@ -34,7 +34,7 @@ The system is built on a split-stack client-server architecture:
 
   +-----------------------+              +-----------------------+
   |    React Frontend     |              |  Spring Boot Backend  |
-  |  (Vite Dev - Port 5173)| <==========> |  (Tomcat Server - 8080)|
+  | (Vite Dev - Port 5173)| <==========> | (Tomcat Server - 8080)|
   |                       |   REST API   |                       |
   |  - State Management   |    (JSON)    |  - Spring Security    |
   |  - Glassmorphic UI    |              |  - JPA / Hibernate    |
