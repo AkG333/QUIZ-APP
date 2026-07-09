@@ -91,6 +91,7 @@ public class QuestionServiceImpl implements QuestionService {
                 .optionB(question.getOptionB())
                 .optionC(question.getOptionC())
                 .optionD(question.getOptionD())
+                .correctAnswer(question.getCorrectAnswer())
                 .build();
     }
 }

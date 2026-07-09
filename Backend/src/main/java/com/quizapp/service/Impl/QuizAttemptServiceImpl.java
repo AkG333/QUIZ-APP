@@ -10,6 +10,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -49,12 +52,24 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         User attachedUser = userRepository.findByEmail(user.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        List<Question> questions = quiz.getQuestions();
+        if (questions.isEmpty()) {
+            throw new RuntimeException("Quiz contains no questions");
+        }
+
+        List<Long> questionIds = new ArrayList<>(questions.stream().map(Question::getId).toList());
+        if (quiz.isRandomizeQuestions()) {
+            Collections.shuffle(questionIds);
+        }
+        String questionOrder = questionIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+
         QuizAttempt attempt = QuizAttempt.builder()
                 .user(attachedUser)
                 .quiz(quiz)
                 .score(0)
                 .currentQuestionIndex(0)
-                .totalQuestions(quiz.getQuestions().size())
+                .totalQuestions(questions.size())
+                .questionOrder(questionOrder)
                 .completed(false)
                 .percentage(0.0)
                 .startedAt(LocalDateTime.now())
@@ -62,11 +77,11 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
 
         quizAttemptRepository.save(attempt);
 
-        if (quiz.getQuestions().isEmpty()) {
-            throw new RuntimeException("Quiz contains no questions");
-        }
-
-        Question firstQuestion = quiz.getQuestions().get(0);
+        Long firstQuestionId = questionIds.get(0);
+        Question firstQuestion = questions.stream()
+                .filter(q -> q.getId().equals(firstQuestionId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Question not found in sequence"));
 
         QuestionResponse questionDTO =
                 QuestionResponse.builder()
@@ -81,8 +96,9 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         return JoinQuizResponseDTO.builder()
                 .attemptId(attempt.getId())
                 .quizTitle(quiz.getTitle())
-                .totalQuestions(quiz.getQuestions().size())
+                .totalQuestions(questions.size())
                 .firstQuestion(questionDTO)
+                .timeLimit(quiz.getTimeLimit() != null ? quiz.getTimeLimit() : 0)
                 .build();
     }
 
@@ -96,14 +112,45 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         }
 
         Quiz quiz = attempt.getQuiz();
+
+        // Check if quiz has expired due to time limit
+        if (quiz.getTimeLimit() != null && quiz.getTimeLimit() > 0) {
+            LocalDateTime expiryTime = attempt.getStartedAt().plusSeconds(quiz.getTimeLimit());
+            if (LocalDateTime.now().isAfter(expiryTime)) {
+                attempt.setCompleted(true);
+                attempt.setCompletedAt(expiryTime);
+                double pct = attempt.getTotalQuestions() > 0 
+                        ? ((double) attempt.getScore() / attempt.getTotalQuestions()) * 100.0
+                        : 0.0;
+                attempt.setPercentage(pct);
+                quizAttemptRepository.save(attempt);
+                throw new RuntimeException("Quiz time limit has expired");
+            }
+        }
+
         List<Question> questions = quiz.getQuestions();
         int currentIndex = attempt.getCurrentQuestionIndex();
 
-        if (currentIndex >= questions.size()) {
+        String questionOrderStr = attempt.getQuestionOrder();
+        if (questionOrderStr == null || questionOrderStr.isEmpty()) {
+            questionOrderStr = questions.stream()
+                    .map(q -> String.valueOf(q.getId()))
+                    .collect(Collectors.joining(","));
+        }
+        List<Long> questionIds = Arrays.stream(questionOrderStr.split(","))
+                .map(Long::parseLong)
+                .toList();
+
+        if (currentIndex >= questionIds.size()) {
             throw new RuntimeException("No more questions to answer in this attempt");
         }
 
-        Question currentQuestion = questions.get(currentIndex);
+        Long currentQuestionId = questionIds.get(currentIndex);
+        Question currentQuestion = questions.stream()
+                .filter(q -> q.getId().equals(currentQuestionId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Question not found in sequence"));
+
         if (!currentQuestion.getId().equals(request.getQuestionId())) {
             throw new RuntimeException("Submitted question ID does not match current question in sequence");
         }
@@ -124,11 +171,11 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         }
         attempt.setCurrentQuestionIndex(currentIndex + 1);
 
-        boolean isLast = (attempt.getCurrentQuestionIndex() >= questions.size());
+        boolean isLast = (attempt.getCurrentQuestionIndex() >= questionIds.size());
         if (isLast) {
             attempt.setCompleted(true);
             attempt.setCompletedAt(LocalDateTime.now());
-            double pct = ((double) attempt.getScore() / questions.size()) * 100.0;
+            double pct = ((double) attempt.getScore() / questionIds.size()) * 100.0;
             attempt.setPercentage(pct);
         }
 
@@ -157,11 +204,26 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         List<Question> questions = quiz.getQuestions();
         int currentIndex = attempt.getCurrentQuestionIndex();
 
-        if (currentIndex >= questions.size()) {
+        String questionOrderStr = attempt.getQuestionOrder();
+        if (questionOrderStr == null || questionOrderStr.isEmpty()) {
+            questionOrderStr = questions.stream()
+                    .map(q -> String.valueOf(q.getId()))
+                    .collect(Collectors.joining(","));
+        }
+        List<Long> questionIds = Arrays.stream(questionOrderStr.split(","))
+                .map(Long::parseLong)
+                .toList();
+
+        if (currentIndex >= questionIds.size()) {
             throw new RuntimeException("No more questions left in this attempt");
         }
 
-        Question nextQuestion = questions.get(currentIndex);
+        Long nextQuestionId = questionIds.get(currentIndex);
+        Question nextQuestion = questions.stream()
+                .filter(q -> q.getId().equals(nextQuestionId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Question not found"));
+
         return QuestionResponse.builder()
                 .questionId(nextQuestion.getId())
                 .questionText(nextQuestion.getQuestionText())
@@ -239,5 +301,30 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
                 })
                 .sorted(Comparator.comparingDouble(OverallLeaderboardEntry::getAveragePercentage).reversed())
                 .toList();
+    }
+
+    @Override
+    public SubmitAnswerResponse finishAttempt(Long attemptId) {
+        QuizAttempt attempt = quizAttemptRepository.findById(attemptId)
+                .orElseThrow(() -> new RuntimeException("Quiz attempt not found"));
+
+        if (!attempt.getCompleted()) {
+            attempt.setCompleted(true);
+            attempt.setCompletedAt(LocalDateTime.now());
+            double pct = attempt.getTotalQuestions() > 0 
+                    ? ((double) attempt.getScore() / attempt.getTotalQuestions()) * 100.0
+                    : 0.0;
+            attempt.setPercentage(pct);
+            quizAttemptRepository.save(attempt);
+        }
+
+        return SubmitAnswerResponse.builder()
+                .correct(false)
+                .correctAnswer(null)
+                .score(attempt.getScore())
+                .isLastQuestion(true)
+                .completed(true)
+                .percentage(attempt.getPercentage())
+                .build();
     }
 }

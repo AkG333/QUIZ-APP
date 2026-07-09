@@ -2,6 +2,7 @@ package com.quizapp.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.quizapp.enums.Difficulty;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -27,6 +28,13 @@ public class Quiz {
     private String quizPassword;
 
     private boolean passwordProtected;
+
+    @Enumerated(EnumType.STRING)
+    private Difficulty difficulty;
+
+    private Integer timeLimit;
+
+    private boolean randomizeQuestions;
 
     private LocalDateTime createdAt;
 

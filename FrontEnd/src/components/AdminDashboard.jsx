@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, ArrowLeft, ShieldAlert, Check, HelpCircle, Save, X, Eye } from 'lucide-react';
 
+const formatTimeLimit = (totalSeconds) => {
+  if (!totalSeconds || totalSeconds <= 0) return 'No Limit';
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  
+  const parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  if (s > 0) parts.push(`${s}s`);
+  
+  return parts.join(' ');
+};
+
 export default function AdminDashboard({ token }) {
   const [quizzes, setQuizzes] = useState([]);
   const [selectedQuiz, setSelectedQuiz] = useState(null); // When managing questions
@@ -16,6 +30,11 @@ export default function AdminDashboard({ token }) {
   const [quizTitle, setQuizTitle] = useState('');
   const [quizPasswordProtected, setQuizPasswordProtected] = useState(false);
   const [quizPassword, setQuizPassword] = useState('');
+  const [quizDifficulty, setQuizDifficulty] = useState('EASY');
+  const [quizHours, setQuizHours] = useState(0);
+  const [quizMinutes, setQuizMinutes] = useState(0);
+  const [quizSeconds, setQuizSeconds] = useState(0);
+  const [quizRandomizeQuestions, setQuizRandomizeQuestions] = useState(false);
 
   // Create / Edit Question fields
   const [showQuestionForm, setShowQuestionForm] = useState(false);
@@ -85,6 +104,11 @@ export default function AdminDashboard({ token }) {
     setQuizTitle('');
     setQuizPasswordProtected(false);
     setQuizPassword('');
+    setQuizDifficulty('EASY');
+    setQuizHours(0);
+    setQuizMinutes(0);
+    setQuizSeconds(0);
+    setQuizRandomizeQuestions(false);
     setShowQuizModal(true);
   };
 
@@ -94,6 +118,14 @@ export default function AdminDashboard({ token }) {
     setQuizTitle(quiz.title);
     setQuizPasswordProtected(quiz.passwordProtected);
     setQuizPassword('');
+    setQuizDifficulty(quiz.difficulty || 'EASY');
+    
+    const limit = quiz.timeLimit || 0;
+    setQuizHours(Math.floor(limit / 3600));
+    setQuizMinutes(Math.floor((limit % 3600) / 60));
+    setQuizSeconds(limit % 60);
+    
+    setQuizRandomizeQuestions(quiz.randomizeQuestions || false);
     setShowQuizModal(true);
   };
 
@@ -105,6 +137,8 @@ export default function AdminDashboard({ token }) {
     const url = editingQuiz ? `/api/quizzes/${editingQuiz.id}` : '/api/quizzes';
     const method = editingQuiz ? 'PUT' : 'POST';
     
+    const totalSeconds = (quizHours * 3600) + (quizMinutes * 60) + quizSeconds;
+    
     try {
       const res = await fetch(url, {
         method: method,
@@ -115,7 +149,10 @@ export default function AdminDashboard({ token }) {
         body: JSON.stringify({
           title: quizTitle,
           passwordProtected: quizPasswordProtected,
-          quizPassword: quizPasswordProtected ? quizPassword : null
+          quizPassword: quizPasswordProtected ? quizPassword : null,
+          difficulty: quizDifficulty,
+          timeLimit: totalSeconds,
+          randomizeQuestions: quizRandomizeQuestions
         })
       });
 
@@ -276,6 +313,19 @@ export default function AdminDashboard({ token }) {
                     <div className="quiz-meta">
                       <span className="quiz-meta-item quiz-code-badge">{quiz.quizCode}</span>
                       <span className="quiz-meta-item">{quiz.totalQuestions} Questions</span>
+                      {quiz.difficulty && (
+                        <span className={`badge ${
+                          quiz.difficulty === 'EASY' ? 'badge-green' :
+                          quiz.difficulty === 'MEDIUM' ? 'badge-blue' :
+                          'badge-pink'
+                        }`}>
+                          {quiz.difficulty}
+                        </span>
+                      )}
+                      <span className="quiz-meta-item">⏱️ {formatTimeLimit(quiz.timeLimit)}</span>
+                      {quiz.randomizeQuestions && (
+                        <span className="quiz-meta-item" style={{ color: 'var(--primary-color)', background: 'var(--primary-glow-soft)' }}>🔀 Shuffled</span>
+                      )}
                       {quiz.passwordProtected && (
                         <span className="badge badge-purple">Protected</span>
                       )}
@@ -496,7 +546,78 @@ export default function AdminDashboard({ token }) {
                 />
               </div>
 
-              <div className="glass-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px', margin: '20px 0' }}>
+              <div className="glass-group" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', marginBottom: '16px' }}>
+                <div>
+                  <label className="glass-label">Difficulty Level</label>
+                  <select
+                    className="glass-select"
+                    value={quizDifficulty}
+                    onChange={(e) => setQuizDifficulty(e.target.value)}
+                  >
+                    <option value="EASY">Easy</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HARD">Hard</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="glass-label">Time Limit</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        className="glass-input"
+                        placeholder="HH"
+                        style={{ width: '100%', textAlign: 'center', padding: '10px 4px' }}
+                        value={quizHours || ''}
+                        onChange={(e) => setQuizHours(Math.max(0, parseInt(e.target.value) || 0))}
+                      />
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 600 }}>HRS</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="59"
+                        className="glass-input"
+                        placeholder="MM"
+                        style={{ width: '100%', textAlign: 'center', padding: '10px 4px' }}
+                        value={quizMinutes || ''}
+                        onChange={(e) => setQuizMinutes(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
+                      />
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 600 }}>MIN</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="59"
+                        className="glass-input"
+                        placeholder="SS"
+                        style={{ width: '100%', textAlign: 'center', padding: '10px 4px' }}
+                        value={quizSeconds || ''}
+                        onChange={(e) => setQuizSeconds(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
+                      />
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 600 }}>SEC</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="glass-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px', margin: '16px 0' }}>
+                <input
+                  id="randomize-qs"
+                  type="checkbox"
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  checked={quizRandomizeQuestions}
+                  onChange={(e) => setQuizRandomizeQuestions(e.target.checked)}
+                />
+                <label htmlFor="randomize-qs" style={{ fontWeight: 600, cursor: 'pointer' }}>
+                  Randomize Question Order
+                </label>
+              </div>
+
+              <div className="glass-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px', margin: '16px 0' }}>
                 <input
                   id="pwd-protected"
                   type="checkbox"

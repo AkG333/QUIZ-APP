@@ -34,6 +34,9 @@ public class QuizAttempt {
     // Total questions in this quiz
     private Integer totalQuestions;
 
+    @Column(length = 2000)
+    private String questionOrder;
+
     // Current question index
     private Integer currentQuestionIndex;
 

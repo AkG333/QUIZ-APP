@@ -23,6 +23,7 @@ export default function QuizPlay({ token, activeAttempt, onBackToDashboard }) {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [timeLeft, setTimeLeft] = useState(activeAttempt.timeLimit || 0);
 
   // Clean-up or trigger confetti on completion
   useEffect(() => {
@@ -49,6 +50,46 @@ export default function QuizPlay({ token, activeAttempt, onBackToDashboard }) {
       }, 250);
     }
   }, [quizCompleted]);
+
+  const handleTimeExpired = async () => {
+    setError("Time's up! Finalizing your quiz attempt...");
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/attempts/${attemptId}/finish`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to auto-submit quiz');
+      const data = await response.json();
+      setFinalScore(data.score);
+      setFinalPercentage(data.percentage);
+      setQuizCompleted(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!timeLeft || quizCompleted) return;
+
+    const timerId = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerId);
+          handleTimeExpired();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timerId);
+  }, [timeLeft, quizCompleted]);
 
   const handleSelectOption = (optCode) => {
     if (isSubmitted) return; // Cannot change after submit
@@ -203,8 +244,29 @@ export default function QuizPlay({ token, activeAttempt, onBackToDashboard }) {
           />
         </div>
 
-        <div className="quiz-qnum">
-          Question {qIndex} of {totalQuestions}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div className="quiz-qnum" style={{ marginBottom: 0 }}>
+            Question {qIndex} of {totalQuestions}
+          </div>
+          {activeAttempt.timeLimit > 0 && (
+            <div 
+              className={`quiz-qnum ${timeLeft < 30 ? 'timer-pulse' : ''}`}
+              style={{
+                marginBottom: 0,
+                fontSize: '1rem',
+                color: timeLeft < 30 ? 'var(--error-color)' : 'var(--text-color)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>⏱️ {
+                timeLeft >= 3600 
+                  ? `${Math.floor(timeLeft / 3600)}:${String(Math.floor((timeLeft % 3600) / 60)).padStart(2, '0')}:${String(timeLeft % 60).padStart(2, '0')}`
+                  : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
+              }</span>
+            </div>
+          )}
         </div>
         
         <h3 className="quiz-qtext">

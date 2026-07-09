@@ -20,4 +20,6 @@ public class QuestionResponse{
     private String optionC;
 
     private String optionD;
+
+    private String correctAnswer;
 }

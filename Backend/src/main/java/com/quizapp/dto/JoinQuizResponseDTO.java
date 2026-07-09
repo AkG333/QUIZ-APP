@@ -17,4 +17,5 @@ public class JoinQuizResponseDTO {
 
     private QuestionResponse firstQuestion;
 
+    private Integer timeLimit;
 }

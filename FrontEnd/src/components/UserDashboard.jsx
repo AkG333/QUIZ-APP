@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Key, Award, Clock, ArrowRight, ShieldAlert, CheckCircle, RefreshCw } from 'lucide-react';
+import { Play, Key, Award, Clock, ArrowRight, ShieldAlert, CheckCircle, RefreshCw, Shuffle, Timer } from 'lucide-react';
+
+const formatTimeLimit = (totalSeconds) => {
+  if (!totalSeconds || totalSeconds <= 0) return 'No Limit';
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  
+  const parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  if (s > 0) parts.push(`${s}s`);
+  
+  return parts.join(' ');
+};
 
 export default function UserDashboard({ token, onStartAttempt, onViewChange }) {
   const [quizzes, setQuizzes] = useState([]);
@@ -243,6 +257,25 @@ export default function UserDashboard({ token, onStartAttempt, onViewChange }) {
                     <div className="quiz-meta" style={{ marginBottom: '12px' }}>
                       <span className="quiz-meta-item quiz-code-badge">{quiz.quizCode}</span>
                       <span className="quiz-meta-item">{quiz.totalQuestions} Questions</span>
+                      {quiz.difficulty && (
+                        <span className={`badge ${
+                          quiz.difficulty === 'EASY' ? 'badge-green' :
+                          quiz.difficulty === 'MEDIUM' ? 'badge-blue' :
+                          'badge-pink'
+                        }`}>
+                          {quiz.difficulty}
+                        </span>
+                      )}
+                      <span className="quiz-meta-item" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Timer size={12} />
+                        <span>{formatTimeLimit(quiz.timeLimit)}</span>
+                      </span>
+                      {quiz.randomizeQuestions && (
+                        <span className="quiz-meta-item" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary-color)', background: 'var(--primary-glow-soft)' }}>
+                          <Shuffle size={12} />
+                          <span>Randomized</span>
+                        </span>
+                      )}
                       {quiz.passwordProtected && (
                         <span className="quiz-meta-item" style={{ color: '#fbbf24', background: 'rgba(251,191,36,0.1)' }}>
                           Protected

@@ -1042,6 +1042,18 @@ h1, h2, h3, h4, h5, h6 {
   color: #c084fc;
 }
 
+.badge-green {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.badge-pink {
+  background: rgba(255, 42, 133, 0.1);
+  border: 1px solid rgba(255, 42, 133, 0.3);
+  color: #ff2a85;
+}
+
 /* Question List Layout in Admin Dashboard */
 .question-item {
   background: rgba(255, 255, 255, 0.02);
@@ -1119,4 +1131,13 @@ h1, h2, h3, h4, h5, h6 {
 .question-option-pill .bullet {
   font-weight: 700;
   margin-right: 8px;
+}
+
+@keyframes timerUrgent {
+  from { opacity: 0.5; filter: drop-shadow(0 0 2px var(--error-glow)); }
+  to { opacity: 1; filter: drop-shadow(0 0 10px var(--error-color)); }
+}
+
+.timer-pulse {
+  animation: timerUrgent 0.8s ease-in-out infinite alternate;
 }

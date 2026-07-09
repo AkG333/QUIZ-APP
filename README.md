@@ -2,11 +2,32 @@
 
 Quizovian is a premium, smooth, and ambient-styled Online Quiz Application.
 This documentation provides a comprehensive description of the system architecture,
-individual REST API endpoints, frontend component structures, the interactive
-communication flow, and local environment setup instructions.
+the technologies used, backend REST APIs, frontend HTTP communication,
+and step-by-step walkthrough instructions to run and test the application locally.
 
 ------------------------------------------------------------------------
-1. SYSTEM ARCHITECTURE OVERVIEW
+1. TECHNOLOGY STACK
+------------------------------------------------------------------------
+
+A. Backend Server (Spring Boot)
+================================
+- Core Framework: Java JDK 21, Spring Boot (v4.1.x)
+- Security: Spring Security 6 with JWT (JSON Web Tokens) Authentication
+- Database ORM: Spring Data JPA (Hibernate 7.x)
+- Database: MySQL Community Server (Database: `quiz_app_db`)
+- Build Automation: Maven Wrapper (mvnw)
+- Data Utilities: Lombok for boilerplate reductions
+
+B. Frontend Application (React)
+================================
+- Build Tool: Vite
+- Rendering Core: React 19 / React DOM
+- Icons: Lucide React (e.g., Play, Timer, Shuffle, RefreshCw)
+- Animations: Canvas Confetti (celebration explosions)
+- Theme System: Vanilla CSS variables (ambient modes pink-ambient and blue-ambient)
+
+------------------------------------------------------------------------
+2. SYSTEM ARCHITECTURE & DATA FLOW
 ------------------------------------------------------------------------
 
 The system is built on a split-stack client-server architecture:
@@ -20,17 +41,16 @@ The system is built on a split-stack client-server architecture:
   |  - Ambient Themes     |              |  - MySQL Database     |
   +-----------------------+              +-----------------------+
 
-Communication is established via clean RESTful requests. During development,
-Vite's dev server acts as a reverse proxy, directing requests matching /api/*
-to the Spring Boot server to bypass browser cross-origin constraints. In addition,
-the backend supports CORS explicitly to accept traffic from http://localhost:5173.
+During development, Vite's dev server acts as a reverse proxy, directing requests 
+matching `/api/*` to the Spring Boot server (port 8080) to bypass browser cross-origin 
+constraints. The backend supports CORS explicitly to accept traffic from http://localhost:5173.
 
 ------------------------------------------------------------------------
-2. BACKEND REST API ENDPOINTS
+3. BACKEND REST API ENDPOINTS
 ------------------------------------------------------------------------
 
-All endpoints require JSON payloads (unless noted otherwise) and return JSON
-responses. Authenticated endpoints require an HTTP header:
+All endpoints require JSON payloads (unless noted otherwise) and return JSON responses.
+Authenticated endpoints require the HTTP header:
 "Authorization: Bearer <JWT_TOKEN>"
 
 A. Authentication Controller (/api/auth)
@@ -41,55 +61,53 @@ A. Authentication Controller (/api/auth)
   * Returns: String message ("User Registered Successfully").
   
 - POST /api/auth/login
-  * Purpose: Authenticates a user and generates an access token.
+  * Purpose: Authenticates a credentials payload and generates an access token.
   * Body: { "email": "...", "password": "..." }
-  * Returns: Plain-text string containing the signed JWT token. The token contains
-    custom claims for "username" and "role" (ROLE_USER or ROLE_ADMIN) alongside
-    the email subject claim.
+  * Returns: Plain-text string containing the signed JWT token.
 
 B. Quiz Controller (/api/quizzes)
 =================================
 - GET /api/quizzes
-  * Purpose: Retrieve a list of all active quizzes.
+  * Purpose: Retrieve a list of quizzes. Admins will ONLY see quizzes they created, while players see all quizzes.
   * Access: USER, ADMIN.
-  * Returns: Array of QuizResponse objects containing title, quizCode, totalQuestions, and passwordProtected boolean.
+  * Returns: Array of QuizResponse objects (id, title, quizCode, passwordProtected, totalQuestions, difficulty, timeLimit, randomizeQuestions).
 
 - POST /api/quizzes
   * Purpose: Create a new quiz session (Admin only).
   * Access: ADMIN.
-  * Body: { "title": "...", "passwordProtected": true|false, "quizPassword": "..." }
-  * Returns: Created QuizResponse with generated code (e.g. QZ-A2B3C4).
+  * Body: { "title": "...", "passwordProtected": true|false, "quizPassword": "...", "difficulty": "EASY"|"MEDIUM"|"HARD", "timeLimit": 180, "randomizeQuestions": true|false }
+  * Returns: Created QuizResponse.
 
 - GET /api/quizzes/code/{quizCode}
-  * Purpose: Find a quiz by its generated session code.
+  * Purpose: Find a quiz by its session code.
   * Access: USER, ADMIN.
 
 - PUT /api/quizzes/{id}
-  * Purpose: Modify quiz details (Admin only).
+  * Purpose: Modify quiz details. Admins can only modify their own quizzes.
   * Access: ADMIN.
+  * Body: { "title": "...", "passwordProtected": true|false, "quizPassword": "...", "difficulty": "EASY"|"MEDIUM"|"HARD", "timeLimit": 180, "randomizeQuestions": true|false }
 
 - DELETE /api/quizzes/{id}
-  * Purpose: Remove a quiz and delete its associated questions/attempts (Admin only).
+  * Purpose: Remove a quiz. Admins can only delete their own quizzes.
   * Access: ADMIN.
 
 C. Question Controller (/api/admin/quizzes)
 ===========================================
 - GET /api/admin/quizzes/{quizId}/questions
-  * Purpose: Retrieve a list of all questions in a quiz (Admin only).
+  * Purpose: Retrieve all questions in a quiz (includes correct answers).
   * Access: ADMIN.
 
 - POST /api/admin/quizzes/{quizId}/questions
-  * Purpose: Add a multiple-choice question to a quiz (Admin only).
+  * Purpose: Add a question to a quiz.
   * Access: ADMIN.
   * Body: { "questionText": "...", "optionA": "...", "optionB": "...", "optionC": "...", "optionD": "...", "correctAnswer": "A"|"B"|"C"|"D" }
-  * Returns: Created QuestionResponse.
 
 - PUT /api/admin/quizzes/questions/{questionId}
-  * Purpose: Edit question details (Admin only).
+  * Purpose: Edit question details.
   * Access: ADMIN.
 
 - DELETE /api/admin/quizzes/questions/{questionId}
-  * Purpose: Remove a question from a quiz (Admin only).
+  * Purpose: Remove a question from a quiz.
   * Access: ADMIN.
 
 D. Quiz Attempt Controller (/api/attempts)
@@ -97,170 +115,204 @@ D. Quiz Attempt Controller (/api/attempts)
 - POST /api/attempts/join
   * Purpose: Join a quiz session to start taking it.
   * Access: USER, ADMIN.
-  * Body: { "quizCode": "...", "password": "..." } (Password is optional/required based on protection status).
-  * Returns: JoinQuizResponseDTO containing attemptId, quizTitle, totalQuestions, and firstQuestion details.
+  * Body: { "quizCode": "...", "password": "..." }
+  * Returns: JoinQuizResponseDTO (attemptId, quizTitle, totalQuestions, firstQuestion, timeLimit).
 
 - POST /api/attempts/{attemptId}/submit
-  * Purpose: Submit an answer to the current question.
+  * Purpose: Submit an answer to the current question. If the time limit has expired, it automatically completes the attempt and returns an error.
   * Access: USER, ADMIN.
   * Body: { "questionId": 123, "selectedAnswer": "A"|"B"|"C"|"D" }
-  * Returns: SubmitAnswerResponse detailing if the selected option is correct,
-    what the correct answer code is, the updated score, and completion flags.
+  * Returns: SubmitAnswerResponse (correct, correctAnswer, score, isLastQuestion, completed, percentage).
 
 - GET /api/attempts/{attemptId}/next
   * Purpose: Fetch the next question in the active session.
   * Access: USER, ADMIN.
-  * Returns: QuestionResponse for the next question.
+
+- POST /api/attempts/{attemptId}/finish
+  * Purpose: Finalize and complete the quiz attempt early or when the timer expires.
+  * Access: USER, ADMIN.
+  * Returns: SubmitAnswerResponse indicating final score and percentage.
 
 - GET /api/attempts/history
   * Purpose: Get the logged-in user's previous attempt history.
   * Access: USER, ADMIN.
-  * Returns: List of attempt records, with scores, percentages, and completed dates.
 
 E. Leaderboard Controller (/api/leaderboard)
 =============================================
 - GET /api/leaderboard/overall
   * Purpose: Returns overall player average score percentages across all taken quizzes.
-  * Returns: List of OverallLeaderboardEntry (username, averagePercentage, quizzesAttempted, totalScore).
-
 - GET /api/leaderboard/quiz/{quizId}
-  * Purpose: Retrieve rankings for a specific quiz.
-  * Returns: List of LeaderboardEntry (username, score, totalQuestions, percentage, completedAt).
+  * Purpose: Retrieve user rankings for a specific quiz.
 
 ------------------------------------------------------------------------
-3. FRONTEND ARCHITECTURE & COMPONENTS
+4. FRONTEND HTTP CLIENT INTEGRATION (FETCH VS AXIOS)
 ------------------------------------------------------------------------
 
-The client is a single page application built using React 19 and Vite.
+The frontend utilizes the native `fetch` API for all server communication. Below is the
+documentation of how these request parameters are implemented, alongside an alternative
+integration blueprint using `axios`.
 
-Core Files
-==========
-- index.html: Sets viewport, imports modern Google Fonts ("Outfit" and "Plus Jakarta Sans"), and provides root container.
-- vite.config.js: Injects `@vitejs/plugin-react` and configures the dev proxy mapping `/api` requests to `http://localhost:8080`.
-- src/main.jsx: Bootstraps the React virtual DOM under StrictMode.
-- src/index.css: House of the ambient design system. Implements custom styling tokens, moving background animations, glassmorphism templates, and glowing elements.
-- src/App.jsx: Root component. Orchestrates global state:
-  * token: persisted in localStorage to remain logged in.
-  * user: decoded JWT claims (email, username, role).
-  * theme: pink-ambient or blue-ambient, synced to localStorage and root html attribute.
-  * view: dashboard, quiz-play, leaderboard.
+A. Fetch API Implementation (As Written)
+=========================================
+1. Authentication Header:
+   Requests must append the `Authorization` header with the Bearer JWT token.
+   Example:
+   ```javascript
+   const res = await fetch('/api/quizzes', {
+     headers: { 'Authorization': `Bearer ${token}` }
+   });
+   ```
 
-Reusable UI Components (src/components/)
-========================================
-- ThemeSelector.jsx: Floating selector toggling between 'pink-ambient' and 'blue-ambient'.
-- Login.jsx: Frosted card that switches between login and registration. Includes input fields for email, username, password, and account role type (Player/Admin).
-- Navbar.jsx: Top transparent navigation bar with active state colors, user greeting badge, and log-out buttons.
-- UserDashboard.jsx: Player dashboard displaying statistical summaries, a list of available quizzes, custom code joining forms, a history log, and top 5 leaderboards.
-- AdminDashboard.jsx: Admin controller containing quizzes management table, a quiz creator dialog, and interactive question editor screens (CRUD).
-- QuizPlay.jsx: Interactive test runner. Includes choice options, submit checkings, timers/progress indicators, radial percentages, and confetti celebrations.
-- Leaderboard.jsx: Championship board rendering rankings filtered by specific quizzes or overall systems averages.
+2. Request Body and Method:
+   Payload requests are serialized to JSON string format and must declare `Content-Type: application/json`.
+   Example:
+   ```javascript
+   const res = await fetch(`/api/admin/quizzes/${quizId}/questions`, {
+     method: 'POST',
+     headers: {
+       'Content-Type': 'application/json',
+       'Authorization': `Bearer ${token}`
+     },
+     body: JSON.stringify({
+       questionText: qText,
+       optionA: qOptA,
+       optionB: qOptB,
+       optionC: qOptC,
+       optionD: qOptD,
+       correctAnswer: qCorrect
+     })
+   });
+   ```
 
-------------------------------------------------------------------------
-4. HOW BACKEND & FRONTEND WORK IN HARMONY: LIFE OF A REQUEST
-------------------------------------------------------------------------
+B. Equivalent Axios Implementation (Blueprint)
+===============================================
+If migrating the HTTP client layers to Axios, the configuration can be centralized
+using Axios Interceptors to automatically inject headers.
 
-To demonstrate how the frontend and backend interact, here is the chronological
-journey of a user taking a password-protected quiz:
+1. Axios Client Instance Setup (`src/services/api.js`):
+   ```javascript
+   import axios from 'axios';
 
-[Step 1: Auth & Handshake]
-  1. The player launches the frontend. Since no token is present in localStorage,
-     App.jsx redirects to the Login screen.
-  2. The player types their credentials and clicks "Sign In".
-  3. Login.jsx fires a POST request to /api/auth/login.
-  4. The backend verifies the email and password, generates a JWT token, encodes
-     "username" and "role" claims, and returns it as plain text.
-  5. The frontend stores the token in localStorage and updates the state. App.jsx
-     intercepts the change, decodes the claims using atob(), and sets the user object
-     role (ROLE_USER). This automatically loads the Player Dashboard.
+   const api = axios.create({
+     baseURL: '/api',
+     headers: {
+       'Content-Type': 'application/json'
+     }
+   });
 
-[Step 2: Dashboard Fetching]
-  1. UserDashboard.jsx triggers fetch requests to /api/quizzes, /api/attempts/history,
-     and /api/leaderboard/overall, passing the Bearer token in the request headers.
-  2. The backend intercepts requests via JwtAuthenticationFilter, checks database validity,
-     and responds with the corresponding list values.
-  3. The Player Dashboard populates with quiz cards and statistics charts.
+   // Interceptor to inject bearer token dynamically
+   api.interceptors.request.use((config) => {
+     const token = localStorage.getItem('quizovian_token');
+     if (token) {
+       config.headers.Authorization = `Bearer ${token}`;
+     }
+     return config;
+   }, (error) => {
+     return Promise.reject(error);
+   });
 
-[Step 3: Joining Protected Quizzes]
-  1. The player locates a quiz with a "Protected" badge and clicks "Start Quiz".
-  2. The frontend opens a password input modal.
-  3. The player inputs the session password and clicks "Unlock & Start".
-  4. The frontend calls POST /api/attempts/join with the quiz code and password.
-  5. The backend validates the code and password. If valid, it logs a new QuizAttempt record
-     and responds with the attemptId and the first question.
-  6. The frontend receives the question data and changes the view state to "quiz-play".
+   export default api;
+   ```
 
-[Step 4: Interactive Quiz-Taking]
-  1. QuizPlay.jsx displays the question text and options.
-  2. The player clicks an option (which glows to represent the choice selection) and clicks "Submit Answer".
-  3. The frontend calls POST /api/attempts/{attemptId}/submit with the questionId and option code.
-  4. The backend checks if the answer matches the database record, updates the attempt score, and returns
-     the verification details (correctness, the correct option, score, and last-question indicators).
-  5. The option buttons render the correctness glow: the clicked option turns green if correct, or red if incorrect
-     while the correct option highlights green.
-  6. The player clicks "Next Question", which calls GET /api/attempts/{attemptId}/next to load the next question.
+2. Using the Axios Instance:
+   - Creating a Quiz:
+     ```javascript
+     import api from './api';
 
-[Step 5: Completion and Celebration]
-  1. On the last question, the submit response returns a `completed: true` flag.
-  2. The player clicks "Finish Quiz", setting `quizCompleted: true` in QuizPlay.jsx.
-  3. The frontend triggers `canvas-confetti` explosion animations and calculates the radial progress circle offset.
-  4. The player clicks "Back to Dashboard", returning back to the home views. The dashboard reload fetches updated stats.
-
-------------------------------------------------------------------------
-5. DESIGN DETAILS & AMBIENT INTERFACES
-------------------------------------------------------------------------
-
-To achieve the modern "ambient" visual quality, the frontend utilizes customized CSS
-configurations inside index.css:
-
-A. Moving Background Glows:
-   - Three absolute-positioned divs (`.ambient-orb`) drift across the screen via CSS keyframes.
-   - An extreme blur filter (`filter: blur(130px)`) is applied to blend the elements.
-   - A blend mode (`mix-blend-mode: screen`) produces glowing overlay combinations.
-
-B. HSL Theme Customizations:
-   - The theme selector changes the root tag attributes (`data-theme="pink-ambient"` or `"blue-ambient"`).
-   - Color values, border tones, and shadows are bound to CSS variable tokens:
-     * Pink Ambient: uses rich velvet-roses, violet, and neon-pink glows.
-     * Blue Ambient: uses deep oceanic blues, cyans, and sapphire glows.
-   - All colors, filters, and shadows transition smoothly via:
-     `transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);`
-
-C. Glassmorphic Pill Navbar and Cards:
-   - Elements are styled with background translucency (`rgba(255, 255, 255, 0.03)`).
-   - Glass reflections are generated via backdrop blurs (`backdrop-filter: blur(20px)`).
-   - Interactive hover actions slightly translate the cards upwards and expand shadow parameters.
+     const createQuiz = async (quizData) => {
+       const response = await api.post('/quizzes', quizData);
+       return response.data;
+     };
+     ```
+   - Fetching Next Question:
+     ```javascript
+     const getNextQuestion = async (attemptId) => {
+       const response = await api.get(`/attempts/${attemptId}/next`);
+       return response.data;
+     };
+     ```
 
 ------------------------------------------------------------------------
-6. LOCAL SETUP & LAUNCH INSTRUCTIONS
+5. LOCAL SETUP & LAUNCH INSTRUCTIONS
 ------------------------------------------------------------------------
 
 Prerequisites:
-- Java JDK 21+ installed.
-- Node.js 18+ installed.
+- Java JDK 21 or higher installed.
+- Node.js 18 or higher installed.
 - MySQL database active and configured.
 
-A. Backend Setup
-================
-1. Configure your database settings inside `Backend/src/main/resources/application.properties`
-   (DB URL, username, password).
-2. Open a terminal in the `Backend` directory.
-3. Run the Spring Boot application:
-   powershell: .\mvnw.cmd spring-boot:run
-   bash: ./mvnw spring-boot:run
-4. The server will launch and listen on `http://localhost:8080`.
+A. Database Configuration
+=========================
+1. Open your MySQL client and create a new schema named `quiz_app_db`:
+   `CREATE DATABASE quiz_app_db;`
+2. Update database credentials in `Backend/src/main/resources/application.properties`:
+   - `spring.datasource.url=jdbc:mysql://localhost:3306/quiz_app_db`
+   - `spring.datasource.username=YOUR_MYSQL_USERNAME` (defaults to root)
+   - `spring.datasource.password=YOUR_MYSQL_PASSWORD`
 
-B. Frontend Setup
+B. Backend Launch
 =================
+1. Open a terminal in the `Backend` directory.
+2. Launch the Spring Boot application:
+   - Windows (PowerShell): `.\mvnw.cmd spring-boot:run`
+   - macOS/Linux: `./mvnw spring-boot:run`
+3. The server will launch and listen on `http://localhost:8080`. Hibernate will 
+   automatically migrate tables (quizzes, questions, quiz_attempts, attempt_answers, users).
+
+C. Frontend Launch
+==================
 1. Open a terminal in the `FrontEnd` directory.
 2. Install npm dependencies:
-   npm install
+   `npm install`
 3. Launch the Vite development server:
-   npm run dev
-4. Open `http://localhost:5173/` in a browser.
+   `npm run dev`
+4. Open the listed URL (usually `http://localhost:5173/`) in your web browser.
 
-C. Build for Production (Optional)
-==================================
-To bundle the frontend for production, run:
-   npm run build
-The compiled assets will be written to the `FrontEnd/dist` directory.
+------------------------------------------------------------------------
+6. STEP-BY-STEP APPLICATION WALKTHROUGH
+------------------------------------------------------------------------
+
+Follow these steps to fully test all application configurations:
+
+Step 1: Admin Setup & Quiz Creation
+-----------------------------------
+1. Navigate to `http://localhost:5173/` and click the "Create one" link below the login box.
+2. Fill out the registration form: Enter a username, email, and password. Select **Administrator** in the Account Type dropdown. Click **Register**.
+3. Log in with the newly registered administrator credentials.
+4. On the Admin Dashboard, click **Create Quiz**.
+5. Fill in details:
+   - Title: "SpringBoot Core Challenge"
+   - Difficulty Level: **Medium**
+   - Time Limit: Set to **0 Hours, 2 Minutes, 30 Seconds** (equivalent to 150 seconds).
+   - Randomize Question Order: Check the box to enable.
+   - Click **Create Session**.
+6. The new quiz will appear in the grid. Click on the quiz card to open its question manager.
+7. Click **Add Question** to add questions:
+   - Question 1: "What is Dependency Injection?" (Options: A, B, C, D; select correct answer). Save.
+   - Question 2: "Which annotation registers a class as a Spring Bean?" (Options: A, B, C, D; select correct answer). Save.
+   - Question 3: "What is the default bean scope in Spring?" (Options: A, B, C, D; select correct answer). Save.
+8. Verify that the correct answers are clearly highlighted for you in the question list.
+9. Click the Logout icon in the navigation bar.
+
+Step 2: Take Quiz as a Player
+-----------------------------
+1. Click "Create one" again to register a new player.
+2. Register with role **Player**.
+3. Log in with the player credentials.
+4. On the User Dashboard, look at the "Available Quizzes" section.
+5. Verify that the "SpringBoot Core Challenge" card shows:
+   - A blue **MEDIUM** difficulty badge.
+   - A timer badge: **2m 30s**.
+   - A purple **Randomized** (shuffled order) badge.
+6. Click **Start Quiz** to begin.
+7. On the Quiz Play interface, verify:
+   - The countdown timer is ticking down starting from `2:30`.
+   - The question displayed first is randomized (e.g. Question 2 or 3 instead of 1).
+8. Answer the first two questions, clicking **Submit Answer** and **Next Question**.
+9. Let the timer run down to `0:00`.
+10. Verify that when the timer expires:
+    - The screen shows "Time's up! Finalizing your quiz attempt...".
+    - The quiz is automatically submitted.
+    - You are redirected to the celebration/results screen displaying your final radial score percentage based on the questions you completed.
+11. Click **Back to Dashboard** to view your recent attempt logged in the history table.
 ========================================================================

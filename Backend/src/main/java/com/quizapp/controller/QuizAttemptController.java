@@ -45,6 +45,15 @@ public class QuizAttemptController {
         );
     }
 
+    @PostMapping("/{attemptId}/finish")
+    public ResponseEntity<SubmitAnswerResponse> finishAttempt(
+            @PathVariable Long attemptId) {
+
+        return ResponseEntity.ok(
+                quizAttemptService.finishAttempt(attemptId)
+        );
+    }
+
     @GetMapping("/history")
     public ResponseEntity<List<QuizAttemptHistoryResponse>> getAttemptHistory(
             Authentication authentication) {

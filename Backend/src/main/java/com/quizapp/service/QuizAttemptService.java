@@ -18,6 +18,8 @@ public interface QuizAttemptService {
 
     QuestionResponse getNextQuestion(Long attemptId);
 
+    SubmitAnswerResponse finishAttempt(Long attemptId);
+
     List<QuizAttemptHistoryResponse> getUserAttemptHistory(String email);
 
     List<LeaderboardEntry> getLeaderboardByQuiz(Long quizId);

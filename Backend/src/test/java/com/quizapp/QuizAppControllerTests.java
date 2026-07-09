@@ -153,6 +153,9 @@ class QuizAppControllerTests {
         attempt.setCompleted(false);
         attempt.setCurrentQuestionIndex(0);
         attempt.setScore(0);
+        attempt.setQuestionOrder("5");
+        attempt.setTotalQuestions(1);
+        attempt.setStartedAt(LocalDateTime.now());
 
         Quiz quiz = new Quiz();
         Question question = Question.builder()
